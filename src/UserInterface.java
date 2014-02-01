@@ -96,8 +96,8 @@ public class UserInterface extends JFrame
     JLabel chgItemRowLab = new JLabel("row");
     JLabel chgItemColLab = new JLabel("col");
     JLabel chgItemValLab = new JLabel("val");
-	JTable grid;
-	JFrame frame;
+	JTable grid = null;
+	Container frameCont = this.getContentPane();
 	Toolkit tk = Toolkit.getDefaultToolkit();
 
 	@Override
@@ -192,7 +192,7 @@ public class UserInterface extends JFrame
 				int rows = Integer.parseInt(chgItemRow.getText()); 
 				if ((rows < 1) || (rows > numRows))
 				{
-					JOptionPane.showMessageDialog(frame, "Value must be between 1 and " + numRows);
+					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + numRows);
 					wipeInputField("row", true);
 				}
 			}
@@ -201,7 +201,7 @@ public class UserInterface extends JFrame
 				int cols = Integer.parseInt(chgItemCol.getText()); 
 				if ((cols < 1) || (cols > numCols))
 				{
-					JOptionPane.showMessageDialog(frame, "Value must be between 1 and " + numCols);
+					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + numCols);
 					wipeInputField("col", true);
 				}
 			}
@@ -212,7 +212,7 @@ public class UserInterface extends JFrame
 			{
 				if (chgItemRow.getText().compareTo("") != 0)
 				{
-					JOptionPane.showMessageDialog(frame, "Input data must be an integer");
+					JOptionPane.showMessageDialog(this, "Input data must be an integer");
 					wipeInputField("row", true);
 				}
 			}
@@ -220,7 +220,7 @@ public class UserInterface extends JFrame
 			{
 				if (chgItemCol.getText().compareTo("") != 0)
 				{
-					JOptionPane.showMessageDialog(frame, "Input data must be an integer");
+					JOptionPane.showMessageDialog(this, "Input data must be an integer");
 					wipeInputField("col", true);
 				}
 			}
@@ -250,7 +250,7 @@ public class UserInterface extends JFrame
 				else if (arg0.getKeyChar() > '5')
 				{
 				    arg0.consume();
-					JOptionPane.showMessageDialog(frame, "Value must be >= 0 and <= 5");
+					JOptionPane.showMessageDialog(this, "Value must be >= 0 and <= 5");
 					chgItemVal.requestFocus();
 				}
 				return;
@@ -287,6 +287,17 @@ public class UserInterface extends JFrame
 	
 	private void drawGrid()
 	{
+		if (grid != null)
+			frameCont.remove(grid);
+		grid = new JTable(data.getNumOfRows() + 1, data.getNumOfColumns() + 1);
+		for(int j = 0; j < data.getNumOfColumns() + 1; j++)
+		{
+			grid.getColumnModel().getColumn(j).setCellRenderer(new MyTableCellRenderer());
+		}
+		grid.setRowHeight(20);
+		grid.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        frameCont.add(grid, BorderLayout.CENTER);
+
 		Rating item = null;
 		for(int i = 1; i < data.getNumOfRows()+ 1; i++)
 		{
@@ -329,24 +340,12 @@ public class UserInterface extends JFrame
 	public UserInterface()
 	{
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		
-		Container frameCont = this.getContentPane();
-		
+				
 		numCols = Matrix.MAX_COLUMNS;
 		numRows = Matrix.MAX_ROWS;
 	    chgItemRow = new JTextField("", (this.numRows < 10 ? 1 : 2));
 	    chgItemCol = new JTextField("", (this.numCols < 10 ? 1 : 2));
 
-		grid = new JTable(numRows + 1, numCols + 1);
-		for(int j = 0; j < Matrix.MAX_COLUMNS + 1; j++)
-		{
-			grid.getColumnModel().getColumn(j).setCellRenderer(new MyTableCellRenderer());
-		}
-		
-		grid.setRowHeight(20);
-		grid.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-
-        frameCont.add(grid, BorderLayout.CENTER);
         JMenuBar jmb = new JMenuBar();
         JMenu mFile = new JMenu("File");
         mFile.setMnemonic(KeyEvent.VK_F);

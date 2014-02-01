@@ -15,6 +15,8 @@ import java.awt.event.KeyListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 
+import javax.sql.rowset.Predicate;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -373,18 +375,16 @@ public class UserInterface extends JFrame
         JMenu mAbout = new JMenu("About");
         jmb.add(mAbout);
         frameCont.add(jmb, BorderLayout.NORTH);
-        JPanel chgPanel = new JPanel(new SpringLayout());
-        chgPanel.add(chgItemRowLab);
-        chgPanel.add(chgItemRow);
-        chgPanel.add(chgItemColLab);
-        chgPanel.add(chgItemCol);
-        chgPanel.add(chgItemValLab);
-        chgPanel.add(chgItemVal);
-        chgItemRow.setName("row");
-        chgItemCol.setName("col");
-        chgItemVal.setName("val");
+       // JPanel chgPanel = new JPanel();//(new SpringLayout());
+       // chgPanel.add(chgItemRowLab);
+       // chgPanel.add(chgItemRow);
+       // chgPanel.add(chgItemColLab);
+       // chgPanel.add(chgItemCol);
+       // chgPanel.add(chgItemValLab);
+       // chgPanel.add(chgItemVal);
         
-        SpringUtilities.makeCompactGrid(chgPanel, 3, 2, 5, 5, 5, 5);
+        
+        //SpringUtilities.makeCompactGrid(chgPanel, 3, 2, 5, 5, 5, 5);
  
 		chgItemRow.addKeyListener(this);
 		chgItemCol.addKeyListener(this);
@@ -394,13 +394,39 @@ public class UserInterface extends JFrame
 		chgItemCol.addFocusListener(this);
 		chgItemVal.addFocusListener(this);
 		
-        frameCont.add(chgPanel, BorderLayout.EAST);
-
+        //frameCont.add(chgPanel);
+        
+        JPanel subPanel = new JPanel();
+        //frameCont.add(subPanel, BorderLayout.EAST);
+        
+        // cambiamenti fatti da noi
+        // vedi se va bene :D
+        
+        frameCont.add(subPanel, BorderLayout.EAST);
+        subPanel.setLayout(new BoxLayout(subPanel, BoxLayout.Y_AXIS));
+        JButton predBtn = new JButton("Predict");
+        predBtn.addActionListener(this);// qui manca l'inserimento della prediction, serve un modo
+        								// per trovare la posizione sulla matrice dove l'utente ha cliccato
+        								// e l'inserimento della prediction nella casella cliccata dall'utente
+        subPanel.add(predBtn);
         JButton chgBtn = new JButton("Change");
 		chgBtn.addActionListener(this);
-        chgPanel.add(chgBtn);
-        frameCont.add(chgBtn, BorderLayout.EAST);
-
+        subPanel.add(chgBtn);
+        subPanel.add(chgBtn);
+        chgItemRow.setName("row");
+        subPanel.add(chgItemRowLab);
+        subPanel.add(chgItemRow);
+        subPanel.add(chgItemRow);
+        chgItemCol.setName("col");
+        subPanel.add(chgItemColLab);
+        subPanel.add(chgItemCol);
+        subPanel.add(chgItemCol);
+        chgItemVal.setName("val");
+        subPanel.add(chgItemValLab);
+        subPanel.add(chgItemVal);
+        subPanel.add(chgItemVal);
+        
+        
         sourceObj[0] = fileOpen;
         sourceObj[1] = fileSave;
         sourceObj[2] = fileSaveAs;

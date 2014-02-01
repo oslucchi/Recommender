@@ -2,7 +2,7 @@
 
 import java.awt.EventQueue;
 
-public class Reccomender {
+public class Recommender {
 
 	/**
 	 * @param args

@@ -40,7 +40,7 @@ public class ProjectSummary {
 	}
 
 	private ArrayList<ClassSummary> classInfo = null;
-	private Map<String, Integer> sourceLinesCount = new HashMap<>();
+	private Map<String, Integer> sourceLinesCount = new HashMap<String, Integer>();
 			
 	private void getSourceInfo(File root)
 	{
@@ -111,9 +111,6 @@ public class ProjectSummary {
 					// Class not foung. Nothing to do with it
 					continue;
 				}
-				if (srcRoot != null)
-				{
-				}
 				ClassSummary cs = new ClassSummary(objClass);
 				classInfo.add(cs);
 			}
@@ -128,8 +125,8 @@ public class ProjectSummary {
 		if (srcPath != null)
 		{
 			srcRoot = new File(srcPath);
+			getSourceInfo(srcRoot);
 		}
-		getSourceInfo(srcRoot);
 		getClassInfo(root, srcRoot);
 	}
 	

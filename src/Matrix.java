@@ -144,7 +144,6 @@ public class Matrix
 	}
 
 
-	@SuppressWarnings("resource")
 	public boolean loadFile()
 	{
 		Scanner input = null;

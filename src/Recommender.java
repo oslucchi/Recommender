@@ -18,7 +18,7 @@ public class Recommender {
 				{
 					srcPath = args[0];
 				}
-					UserInterface ui = new UserInterface(srcPath);
+				UserInterface ui = new UserInterface(srcPath);
 				ui.setVisible(true);
 			}
 		});

@@ -16,7 +16,6 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.util.Arrays;
-import java.util.Comparator;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -140,7 +139,6 @@ public class UserInterface extends JFrame
 	{
 		Pair[] rank = null;
 		String displayMsg = "";
-		Comparator<Pair> c = null;
 		JFileChooser fc = null;
 		FileNameExtensionFilter filter = null;
 
@@ -186,6 +184,9 @@ public class UserInterface extends JFrame
 			{
 				JOptionPane.showMessageDialog(this, userData.getError());
 			}
+			// While saving, predictions became recommendations. We need to re-draw the
+			// grid because the color shoudl change to black
+			drawGrid();
 			break;
 			
 		case FILESAVEAS:
@@ -195,7 +196,11 @@ public class UserInterface extends JFrame
 			fc.setFileFilter(filter);
 			if (fc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION)
 			{
-				userData.saveToFile(fc.getSelectedFile().getAbsolutePath(), predictions);
+				
+				if(!userData.saveToFile(fc.getSelectedFile().getAbsolutePath(), predictions))
+				{
+					JOptionPane.showMessageDialog(this, userData.getError());
+				}
 				// While saving, predictions became recommendations. We need to re-draw the
 				// grid because the color shoudl change to black
 				drawGrid();
@@ -213,7 +218,7 @@ public class UserInterface extends JFrame
 			// reference http://stackoverflow.com/questions/7483421/how-to-get-source-file-name-line-number-from-a-java-lang-class-object
 			ProjectSummary ps = new ProjectSummary(srcPath);
 			displayMsg = "Name:    Recommender\n" +
-						 "Authors: Lorenzo Lucchini, Andrea ,,,,\n" + 
+						 "Authors: Lorenzo Lucchini, Andrea Sanciati\n" + 
 						 "\nProject summary:\n" +
 						 "- Total number of classes " + ps.getNumberOfClasses() + "\n" +
 						 "- Total number of methods " + ps.getNumberOfMethods() + "\n" +
@@ -250,7 +255,7 @@ public class UserInterface extends JFrame
 			{
 				for (int j = 0; j< userData.getNumOfColumns(); j++)
 				{
-					if (userData.getElement(i,  j) == 0)
+					if (userData.getElement(i, j) == 0)
 					{
 						predictions.setElement(i, j, userData.predict(i, j));
 					}
@@ -268,9 +273,48 @@ public class UserInterface extends JFrame
 			break;
 
 		case TOPRECON:
+			rank = new Pair[userData.getNumOfColumns()];
+			for(int j = 0; j < userData.getNumOfColumns(); j++)
+			{
+				if(userData.getElement(statUserIndx - 1, j) != 0)
+				{
+					rank[j] = new Pair(j, Double.valueOf(userData.getElement(statUserIndx - 1, j)));
+				}
+				else
+				{
+					rank[j] = new Pair(j, Double.valueOf(predictions.getElement(statUserIndx - 1, j)));
+				}
+			}
+			Arrays.sort(rank);
+			displayMsg = "User " + statUserIndx + " highest recommended items:\n";
+			for(int i = 0; i < 4; i++)
+			{
+				displayMsg += "- Item " + (rank[i].getIndex() + 1) + " recommendation " + (int) rank[i].getValue() + "\n"; 
+			}
+			JOptionPane.showMessageDialog(this, displayMsg);
 			break;
 
 		case PEARCORR:
+			rank = new Pair[userData.getNumOfRows()];
+			for(int j = 0; j < userData.getNumOfRows(); j++)
+			{
+				if(statUserIndx -1 != j)
+				{
+					rank[j] = new Pair(j, Math.abs(userData.evalW(statUserIndx -1, j)));
+				}
+				else
+				{
+					rank[j] = new Pair(j, 0);
+				}
+			}
+			Arrays.sort(rank);
+			displayMsg = "User " + statUserIndx + " pearson correlation:\n";
+			for(int i = 0; i < 4; i++)
+			{
+				displayMsg += "- User " + (rank[i].getIndex() + 1) + " correlation " + rank[i].getValue() + "\n"; 
+			}
+			JOptionPane.showMessageDialog(this, displayMsg);
+			
 			break;
 		}	
 	}
@@ -402,7 +446,7 @@ public class UserInterface extends JFrame
 			
 			// Set the menu label accordingly with the selected user
 			((JLabel) popUp.getComponent(popUp.getComponentIndex(popupMenuName)))
-				.setText("Statis menu for user " + statUserIndx);
+				.setText("Statistic menu for user " + statUserIndx);
 			popUp.show(arg0.getComponent(), arg0.getX(), arg0.getY());
 		}
 	}

@@ -396,8 +396,11 @@ public class UserInterface extends JFrame
 	{
 		if (arg0.isPopupTrigger())
 		{
+			// Get the row on which the mouse was pressed and associate to the statistic user index var
 			statUserIndx = grid.rowAtPoint(arg0.getPoint());
 			grid.setRowSelectionInterval(statUserIndx, statUserIndx);
+			
+			// Set the menu label accordingly with the selected user
 			((JLabel) popUp.getComponent(popUp.getComponentIndex(popupMenuName)))
 				.setText("Statis menu for user " + statUserIndx);
 			popUp.show(arg0.getComponent(), arg0.getX(), arg0.getY());
@@ -550,6 +553,7 @@ public class UserInterface extends JFrame
         jmb.add(mDummy);
         frameCont.add(jmb, BorderLayout.NORTH);
 
+        // PopUp menu for top 4 recommendations and pearson correlation
         popUp = new JPopupMenu();
 		popUp.add(popupMenuName);
 		popUp.add(new JLabel(" "));

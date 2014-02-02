@@ -5,15 +5,18 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
+import java.util.Arrays;
+import java.util.Comparator;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -25,16 +28,20 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumnModel;
 
 public class UserInterface extends JFrame 
-						   implements KeyListener, FocusListener, ActionListener, WindowStateListener
+						   implements KeyListener, FocusListener, ActionListener, WindowStateListener, 
+						   			  MouseListener, PopupMenuListener
 {
-    public class MyTableCellRenderer extends DefaultTableCellRenderer 
+    public class RecommenderCellRenderer extends DefaultTableCellRenderer 
     {
         /**
 		 * 
@@ -88,11 +95,16 @@ public class UserInterface extends JFrame
     static private final int ABOUT = 4;
     static private final int CHGBTN = 5;
     static private final int PREDBTN = 6;
+    static private final int GRID = 7;
+    static private final int TOPRECON = 8;
+    static private final int PEARCORR = 9;
     
-    Matrix userData;
-    Matrix predictions;
+    private String srcPath = null;
     
-    private Object[] sourceObj = new Object[7];
+    private Matrix userData;
+    private Matrix predictions;
+    
+    private Object[] sourceObj = new Object[10];
     
 	private JTextField chgItemRow = new JTextField("", 2);;
 	private JTextField chgItemCol = new JTextField("", 2);;
@@ -103,9 +115,12 @@ public class UserInterface extends JFrame
     private JButton predBtn = new JButton("Predict");
     private JButton chgBtn = new JButton("Change");
 	private JTable grid = null;
+	private JPopupMenu popUp = null; 
+	private JLabel popupMenuName = new JLabel();
+
 	private Container frameCont = this.getContentPane();
 
-	Toolkit tk = Toolkit.getDefaultToolkit();
+	private int statUserIndx = -1;
 
 	@Override
 	public void windowStateChanged(WindowEvent e) 
@@ -123,6 +138,9 @@ public class UserInterface extends JFrame
 	@Override
 	public void actionPerformed(ActionEvent e) 
 	{
+		Pair[] rank = null;
+		String displayMsg = "";
+		Comparator<Pair> c = null;
 		JFileChooser fc = null;
 		FileNameExtensionFilter filter = null;
 
@@ -193,6 +211,22 @@ public class UserInterface extends JFrame
 			// Menu About
 			// Credit goes to Piotr Gwiazda
 			// reference http://stackoverflow.com/questions/7483421/how-to-get-source-file-name-line-number-from-a-java-lang-class-object
+			ProjectSummary ps = new ProjectSummary(srcPath);
+			displayMsg = "Name:    Recommender\n" +
+						 "Authors: Lorenzo Lucchini, Andrea ,,,,\n" + 
+						 "\nProject summary:\n" +
+						 "- Total number of classes " + ps.getNumberOfClasses() + "\n" +
+						 "- Total number of methods " + ps.getNumberOfMethods() + "\n" +
+						 "- Total number of lines   " + ps.getNumberOfLines() + "\n" +
+						 "\nPer class summary:\n";
+			for(int i = 0; i < ps.getNumberOfClasses(); i++)
+			{
+				displayMsg += "- Class '" + ps.getClassSummary(i).getName() + "'\n" +
+							  "        Total number of methods    : " + ps.getClassSummary(i).getNumOfMethods() + "\n" +
+							  "        Total number of Variables  : " + ps.getClassSummary(i).getNumOfFields() + "\n" +
+							  "        Number of source code lines: " + ps.getClassSummary(i).getNumOfLines() + "\n";
+			}
+			JOptionPane.showMessageDialog(this, displayMsg);
 			break;
 			
 		case CHGBTN:
@@ -228,6 +262,15 @@ public class UserInterface extends JFrame
 				}
 			}
 			drawGrid();
+			break;
+			
+		case GRID:
+			break;
+
+		case TOPRECON:
+			break;
+
+		case PEARCORR:
 			break;
 		}	
 	}
@@ -333,6 +376,59 @@ public class UserInterface extends JFrame
 	{
 	}
 
+	@Override
+	public void mouseClicked(MouseEvent arg0) 
+	{
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent arg0) 
+	{
+	}
+
+	@Override
+	public void mouseExited(MouseEvent arg0) 
+	{
+	}
+
+	@Override
+	public void mousePressed(MouseEvent arg0) 
+	{
+		if (arg0.isPopupTrigger())
+		{
+			statUserIndx = grid.rowAtPoint(arg0.getPoint());
+			grid.setRowSelectionInterval(statUserIndx, statUserIndx);
+			((JLabel) popUp.getComponent(popUp.getComponentIndex(popupMenuName)))
+				.setText("Statis menu for user " + statUserIndx);
+			popUp.show(arg0.getComponent(), arg0.getX(), arg0.getY());
+		}
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent arg0) 
+	{
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void popupMenuCanceled(PopupMenuEvent e) 
+	{
+		grid.clearSelection();
+	}
+
+	@Override
+	public void popupMenuWillBecomeInvisible(PopupMenuEvent e) 
+	{
+		grid.clearSelection();
+	}
+
+	@Override
+	public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+		// TODO Auto-generated method stub
+		
+	}	
+
 	private void wipeInputField(String name, boolean requestFocus)
 	{
 		JTextField tf = null;
@@ -362,10 +458,12 @@ public class UserInterface extends JFrame
 		grid = new JTable(userData.getNumOfRows() + 1, userData.getNumOfColumns() + 1);
 		for(int j = 0; j < userData.getNumOfColumns() + 1; j++)
 		{
-			grid.getColumnModel().getColumn(j).setCellRenderer(new MyTableCellRenderer());
+			grid.getColumnModel().getColumn(j).setCellRenderer(new RecommenderCellRenderer());
 		}
 		grid.setRowHeight(20);
 		grid.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+		grid.addMouseListener(this);
+		grid.setEnabled(false);
         frameCont.add(grid, BorderLayout.CENTER);
 
         // Fill grid with items. Elements of the grid will be Ratings. This class has a type
@@ -412,8 +510,10 @@ public class UserInterface extends JFrame
 		
 	}
 	
-	public UserInterface()
+	public UserInterface(String srcPath)
 	{
+		this.srcPath = srcPath;
+		
 		setTitle("Recommender");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				
@@ -440,11 +540,28 @@ public class UserInterface extends JFrame
         mFile.add(fileSave);
         mFile.add(fileSaveAs);
         mFile.add(fileExit);
-        JMenu mAbout = new JMenu("About");
+        JMenuItem mAbout = new JMenuItem("About");
+        mAbout.addActionListener(this);
+        JMenuItem mDummy = new JMenuItem("");
+        mDummy.setEnabled(false);
         JMenuBar jmb = new JMenuBar();
         jmb.add(mFile);
         jmb.add(mAbout);
+        jmb.add(mDummy);
         frameCont.add(jmb, BorderLayout.NORTH);
+
+        popUp = new JPopupMenu();
+		popUp.add(popupMenuName);
+		popUp.add(new JLabel(" "));
+		JMenuItem topRecom = new JMenuItem("Top 4 Recommandation");
+		topRecom.setMnemonic(KeyEvent.VK_T);
+		topRecom.addActionListener(this);
+		popUp.add(topRecom);
+		JMenuItem pearCorr = new JMenuItem("Pearson correlation");
+		pearCorr.setMnemonic(KeyEvent.VK_P);
+		pearCorr.addActionListener(this);
+		popUp.add(pearCorr);
+		popUp.addPopupMenuListener(this);
  
         JPanel subPanel = new JPanel();
         
@@ -493,23 +610,18 @@ public class UserInterface extends JFrame
         // All objects having actionPerformed event associated are listed in an 
         // array in order to determine which is the source of the current handled action
         // in the actionPerformed method above
-        sourceObj[0] = fileOpen;
-        sourceObj[1] = fileSave;
-        sourceObj[2] = fileSaveAs;
-        sourceObj[3] = fileExit;
-        sourceObj[4] = mAbout;
-        sourceObj[5] = chgBtn;
-        sourceObj[6] = predBtn;
+        sourceObj[FILEOPEN] = fileOpen;
+        sourceObj[FILESAVE] = fileSave;
+        sourceObj[FILESAVEAS] = fileSaveAs;
+        sourceObj[FILEEXIT] = fileExit;
+        sourceObj[ABOUT] = mAbout;
+        sourceObj[CHGBTN] = chgBtn;
+        sourceObj[PREDBTN] = predBtn;
+        sourceObj[TOPRECON] = topRecom;
+        sourceObj[PEARCORR] = pearCorr;
 
         setSize(20 * (Matrix.MAX_COLUMNS + 1) + 180, 20 * (Matrix.MAX_ROWS + 1));
         setMinimumSize(new Dimension(200,  135));
 		// grid.editCellAt(3, 5);
 	}
-	
-	public int numberOfLines()
-	{
-		Throwable t = new Throwable();
-		return t.getStackTrace()[0].getLineNumber();
-	}
-
 }

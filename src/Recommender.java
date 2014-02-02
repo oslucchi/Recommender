@@ -7,13 +7,18 @@ public class Recommender {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) 
+	public static void main(final String[] args) 
 	{
 		EventQueue.invokeLater(new Runnable()
 		{
 			public void run()
 			{
-				UserInterface ui = new UserInterface();
+				String srcPath = null;
+				if (args.length == 1)
+				{
+					srcPath = args[0];
+				}
+					UserInterface ui = new UserInterface(srcPath);
 				ui.setVisible(true);
 			}
 		});

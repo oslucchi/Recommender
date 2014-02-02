@@ -61,26 +61,6 @@ public class Matrix
 		return I;
 	}
 	
-	protected double evalW(int u, int v)
-	{
-		int[] I = evalI(u, v);
-		double Ru = evalR(u);
-		double Rv = evalR(v);
-		double Wnum = 0.0;
-		double WdenU = 0.0;
-		double WdenV = 0.0;
-		
-		for(int i = 0; I[i] != -1; i++ )
-		{
-			int j = I[i];
-			Wnum += (matrix[u][j] - Ru) * (matrix[v][j] - Rv);
-			WdenU += Math.pow((matrix[u][j] - Ru), 2.0);
-			WdenV += Math.pow((matrix[v][j] - Rv), 2.0);
-		}
-		
-		return (Wnum / Math.sqrt(WdenU*WdenV));
-	}
-
 	protected Integer[] evalU(int i, int u)
 	{
 		Vector<Integer> U = new Vector<Integer>();
@@ -117,6 +97,26 @@ public class Matrix
 		temp = temp * evalK(u, i);
 		temp += evalR(u);
 		return (int) Math.round(temp);
+	}
+
+	public double evalW(int u, int v)
+	{
+		int[] I = evalI(u, v);
+		double Ru = evalR(u);
+		double Rv = evalR(v);
+		double Wnum = 0.0;
+		double WdenU = 0.0;
+		double WdenV = 0.0;
+		
+		for(int i = 0; I[i] != -1; i++ )
+		{
+			int j = I[i];
+			Wnum += (matrix[u][j] - Ru) * (matrix[v][j] - Rv);
+			WdenU += Math.pow((matrix[u][j] - Ru), 2.0);
+			WdenV += Math.pow((matrix[v][j] - Rv), 2.0);
+		}
+		
+		return (Wnum / Math.sqrt(WdenU*WdenV));
 	}
 
 	public int getNumOfColumns()

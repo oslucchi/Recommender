@@ -1,5 +1,10 @@
+import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.StringTokenizer;
@@ -22,7 +27,124 @@ public class Matrix
 		matrix = new int[MAX_ROWS][MAX_COLUMNS];
 	}
 
+	protected double evalR(int i) 
+	{
+		int counter = 0;
+		double sum = 0.0;
+		for( int e = 0; e < MAX_COLUMNS; e++)
+		{
+			if(matrix[i][e] != 0)
+			{
+				counter ++;
+				sum += matrix[i][e];
+			}
+		}
+		return ((sum/counter)* 1.0);
+	}
+	
+	protected int[] evalI(int u, int v)
+	{
+		int[] I = new int[MAX_COLUMNS];
+		for(int i = 0; i< I.length; i++)
+		{
+			I[i] = -1;
+		}
+		if (u!=v)
+		{
+			int count = 0;
+			for(int i = 0; i<I.length; i++)
+			{
+				if(matrix[u][i] != 0 && matrix[v][i] !=0)
+					I[count++] = i;
+			}
+		}
+		return I;
+	}
+	
+	protected double evalW(int u, int v)
+	{
+		int[] I = evalI(u, v);
+		double Ru = evalR(u);
+		double Rv = evalR(v);
+		double Wnum = 0.0;
+		double WdenU = 0.0;
+		double WdenV = 0.0;
+		
+		for(int i = 0; I[i] != -1; i++ )
+		{
+			int j = I[i];
+			Wnum += (matrix[u][j] - Ru) * (matrix[v][j] - Rv);
+			WdenU += Math.pow((matrix[u][j] - Ru), 2.0);
+			WdenV += Math.pow((matrix[v][j] - Rv), 2.0);
+		}
+		
+		return (Wnum / Math.sqrt(WdenU*WdenV));
+	}
 
+	protected Integer[] evalU(int i, int u)
+	{
+		Vector<Integer> U = new Vector<Integer>();
+		for (int j = 0; j < MAX_ROWS; j++)
+		{
+			if(matrix[j][i] != 0 && j != u && evalW(u, j) != 0.0)
+			{
+				U.add(j);	
+			}
+		}
+		return U.toArray(new Integer[U.size()]);
+		
+	}
+	
+	private double evalK(int u, int i)
+	{
+		Integer[] U = evalU(i, u);
+		double w = 0.0;
+		for(int j = 0; j < U.length; j++)
+		{
+			w += Math.abs(evalW(u, U[j]));
+		}
+		return 1/w;
+	}
+	
+	public int predict(int u, int i)
+	{
+		Integer[] U = evalU(i, u);
+		double temp = 0.0;
+		for(int j = 0; j < U.length; j++)
+		{
+			temp += evalW(u, U[j]) * (matrix[U[j]][i] - evalR(U[j]));
+		}
+		temp = temp * evalK(u, i);
+		temp += evalR(u);
+		return (int) Math.round(temp);
+	}
+
+	public int getNumOfColumns()
+	{
+		return numOfColumns;
+	}
+
+	public int getNumOfRows() {
+		return numOfRows;
+	}
+
+	public int getElement(int i, int j) 
+	{
+		return matrix[i][j];
+	}
+	
+	public void setElement(int i, int j, int value) 
+	{
+		matrix[i][j] = value;
+	}
+	
+	public String getError() 
+	{
+		return error;
+	}
+
+
+	@SuppressWarnings("resource")
 	public boolean loadFile()
 	{
 		Scanner input = null;
@@ -99,127 +221,89 @@ public class Matrix
 		return true;
 	}
 
-
-	public String getError() {
-		return error;
-	}
-
-
-	public void setError(String error) {
-		this.error = error;
-	}
-
-
-	public double evalR(int i) 
+	private boolean saveToFile(FileOutputStream ofStream, Matrix predictions)
 	{
-		int counter = 0;
-		double sum = 0.0;
-		for( int e = 0; e < MAX_COLUMNS; e++)
+		boolean retVal = true;
+		BufferedWriter bw = null;;
+		DataOutputStream out = new DataOutputStream(ofStream);
+		bw = new BufferedWriter(new OutputStreamWriter(out));
+		try 
 		{
-			if(matrix[i][e] != 0)
+			for(int i = 0; i < numOfRows; i++)
 			{
-				counter ++;
-				sum += matrix[i][e];
+				for(int j = 0; j < numOfColumns; j++)
+				{
+					if (matrix[i][j] == 0)
+					{
+						matrix[i][j] = predictions.getElement(i, j); 
+					}
+					bw.write(String.valueOf(matrix[i][j]) + " ");
+					predictions.setElement(i, j, 0);
+				}
+				bw.write("\r\n");
 			}
 		}
-		return ((sum/counter)* 1.0);
+		catch (IOException e) 
+		{
+			error = "I/O error opening file for write";
+			retVal = false;
+		}
+		try 
+		{
+			bw.close();
+			ofStream.close();
+			out.close();
+		}
+		catch (IOException e1) 
+		{
+			;
+		}
+		return retVal;
 	}
 	
-	public int[] evalI(int u, int v)
+	public boolean saveToFile(String path, Matrix predictions)
 	{
-		int[] I = new int[MAX_COLUMNS];
-		for(int i = 0; i< I.length; i++)
+		FileOutputStream ofStream = null;
+		try 
 		{
-			I[i] = -1;
+			ofStream = new FileOutputStream(path);
 		}
-		if (u!=v)
+		catch (FileNotFoundException e)
 		{
-			int count = 0;
-			for(int i = 0; i<I.length; i++)
-			{
-				if(matrix[u][i] != 0 && matrix[v][i] !=0)
-					I[count++] = i;
-			}
+			error = "Specified path for file is invalid ";
+			return false;
 		}
-		return I;
-	}
-	
-	public double evalW(int u, int v)
-	{
-		int[] I = evalI(u, v);
-		double Ru = evalR(u);
-		double Rv = evalR(v);
-		double Wnum = 0.0;
-		double WdenU = 0.0;
-		double WdenV = 0.0;
-		
-		for(int i = 0; I[i] != -1; i++ )
+		catch (SecurityException e) 
 		{
-			int j = I[i];
-			Wnum += (matrix[u][j] - Ru) * (matrix[v][j] - Rv);
-			WdenU += Math.pow((matrix[u][j] - Ru), 2.0);
-			WdenV += Math.pow((matrix[v][j] - Rv), 2.0);
+			error = "User has no permission to write to '" + path + "'";
+			return false;
 		}
-		
-		return (Wnum / Math.sqrt(WdenU*WdenV));
+		return saveToFile(ofStream, predictions);
 	}
 
-	public Integer[] evalU(int i, int u)
+	public boolean saveToFile(Matrix predictions)
 	{
-		Vector<Integer> U = new Vector<Integer>();
-		for (int j =0; j < MAX_ROWS; j++)
+		FileOutputStream ofStream = null;
+		try 
 		{
-			if(matrix[j][i] != 0 && j != u && evalW(u,j) != 0.0)
-			{
-				U.add(j);	
-			}
+			ofStream = new FileOutputStream(path);
 		}
-		return U.toArray(new Integer[U.size()]);
-		
-	}
-	
-	public double evalK(int u, int i)
-	{
-		Integer[] U = evalU(i, u);
-		double w = 0.0;
-		for(int j = 0; j < U.length; j++)
+		catch (FileNotFoundException e) 
 		{
-			w += Math.abs(evalW(u, U[j]));
+			error = "File path you load from is not valid anymore";
+			return false;
 		}
-		return 1/w;
-	}
-	
-	public int prediction(int u, int i)
-	{
-		Integer[] U = evalU(i, u);
-		double temp = 0.0;
-		for(int j = 0; j < U.length; j++)
+		catch (SecurityException e) 
 		{
-			temp += evalW(u, U[j]) * (matrix[U[j]][i] - evalR(U[i]));
+			error = "File permissions have changed. User has no permission to write anymore";
+			return false;
 		}
-		temp = temp * evalK(u, i);
-		temp += evalR(u);
-		return (int) Math.round(temp);
+		return saveToFile(ofStream, predictions);
 	}
 	
-	public int getNumOfColumns()
+	public Throwable getThrowable()
 	{
-		return numOfColumns;
+		return new Throwable();
 	}
 
-
-	public int getNumOfRows() {
-		return numOfRows;
-	}
-
-
-	public int getElement(int i, int j) 
-	{
-		return matrix[i][j];
-	}
-	public void setElement(int i, int j, int value) 
-	{
-		matrix[i][j] = value;
-	}
-	
 }

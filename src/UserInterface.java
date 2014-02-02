@@ -15,7 +15,6 @@ import java.awt.event.KeyListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 
-import javax.sql.rowset.Predicate;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -28,13 +27,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.SpringLayout;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumnModel;
-import javax.swing.table.TableModel;
-
-import org.uncommons.swing.SpringUtilities;
 
 public class UserInterface extends JFrame 
 						   implements KeyListener, FocusListener, ActionListener, WindowStateListener
@@ -56,7 +51,14 @@ public class UserInterface extends JFrame
 			String s = "";
 			if (valueAt != null) 
 			{
-				s = String.valueOf(valueAt.getValue());
+				if (valueAt.getValue() == 0)
+				{
+					s = "";
+				}
+				else
+				{
+					s = String.valueOf(valueAt.getValue());
+				}
 				if (valueAt.getType() == Rating.TYPE_RATING)
 				{
 					c.setForeground(Color.BLACK);
@@ -85,21 +87,24 @@ public class UserInterface extends JFrame
     static private final int FILEEXIT = 3;
     static private final int ABOUT = 4;
     static private final int CHGBTN = 5;
-    Matrix data;
-    Matrix pred;
+    static private final int PREDBTN = 6;
     
-    private Object[] sourceObj = new Object[6];
+    Matrix userData;
+    Matrix predictions;
     
-	int numRows = 0;
-	int numCols = 0;
-    JTextField chgItemRow;
-    JTextField chgItemCol;
-    JTextField chgItemVal = new JTextField("", 1);
-    JLabel chgItemRowLab = new JLabel("row");
-    JLabel chgItemColLab = new JLabel("col");
-    JLabel chgItemValLab = new JLabel("val");
-	JTable grid = null;
-	Container frameCont = this.getContentPane();
+    private Object[] sourceObj = new Object[7];
+    
+	private JTextField chgItemRow = new JTextField("", 2);;
+	private JTextField chgItemCol = new JTextField("", 2);;
+	private JTextField chgItemVal = new JTextField("", 1);
+	private JLabel chgItemRowLab = new JLabel("row");
+	private JLabel chgItemColLab = new JLabel("col");
+	private JLabel chgItemValLab = new JLabel("val");
+    private JButton predBtn = new JButton("Predict");
+    private JButton chgBtn = new JButton("Change");
+	private JTable grid = null;
+	private Container frameCont = this.getContentPane();
+
 	Toolkit tk = Toolkit.getDefaultToolkit();
 
 	@Override
@@ -118,98 +123,153 @@ public class UserInterface extends JFrame
 	@Override
 	public void actionPerformed(ActionEvent e) 
 	{
-		int i;
-		for(i = 0; i < sourceObj.length; i++)
+		JFileChooser fc = null;
+		FileNameExtensionFilter filter = null;
+
+		// All objects having set an actionListener have been added to the sourceObj array
+		// we compare the source of the ActionEvent received with each element of the array
+		// to decide which action is needed
+		int sourceIndex;
+		for(sourceIndex = 0; sourceIndex < sourceObj.length; sourceIndex++)
 		{
-			if (e.getSource().equals(sourceObj[i]))
+			if (e.getSource().equals(sourceObj[sourceIndex]))
 				break;
 		}
-		switch(i)
+
+		switch(sourceIndex)
 		{
 		case FILEOPEN:
-			JFileChooser fc = new JFileChooser(".");
-			FileNameExtensionFilter filter = new FileNameExtensionFilter(
-				    "Recommender dat files", "dat");
+			// Menu File->Open
+			fc = new JFileChooser(".");
+			filter = new FileNameExtensionFilter("Recommender dat files", "dat");
 			fc.setFileFilter(filter);
+			boolean enableComponents = false;
 			if (fc.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)
 			{
-				System.out.println(fc.getSelectedFile().getAbsolutePath());
-				data = new Matrix(fc.getSelectedFile().getAbsolutePath());
-				if (!data.loadFile())
-					JOptionPane.showMessageDialog(this, data.getError());
-				pred = new Matrix(null);
-				pred.setElement(0, 1, 3);
+				userData = new Matrix(fc.getSelectedFile().getAbsolutePath());
+				if (!userData.loadFile())
+					JOptionPane.showMessageDialog(this, userData.getError());
+				predictions = new Matrix(null);
+				// Data loaded. We can now display recommendations and enable action components
+				drawGrid();
+				enableComponents = true;
+			}
+	        chgBtn.setEnabled(enableComponents);
+	        predBtn.setEnabled(enableComponents);
+	        chgItemCol.setEnabled(enableComponents);
+	        chgItemRow.setEnabled(enableComponents);
+	        chgItemVal.setEnabled(enableComponents);
+			break;
+			
+		case FILESAVE:
+			// Menu File->Save
+			// Same path used for open will be used to save
+			if (!userData.saveToFile(predictions))
+			{
+				JOptionPane.showMessageDialog(this, userData.getError());
+			}
+			break;
+			
+		case FILESAVEAS:
+			// Menu File->Save As
+			fc = new JFileChooser(".");
+			filter = new FileNameExtensionFilter("Recommender dat files", "dat");
+			fc.setFileFilter(filter);
+			if (fc.showSaveDialog(null) == JFileChooser.APPROVE_OPTION)
+			{
+				userData.saveToFile(fc.getSelectedFile().getAbsolutePath(), predictions);
+				// While saving, predictions became recommendations. We need to re-draw the
+				// grid because the color shoudl change to black
 				drawGrid();
 			}
 			break;
 			
-		case FILESAVE:
-			break;
-			
-		case FILESAVEAS:
-			break;
-			
 		case FILEEXIT:
-			System.out.println("command exit");
+			// Menu File->Exit
 			System.exit(0);
 			break;
 			
 		case ABOUT:
+			// Menu About
+			// Credit goes to Piotr Gwiazda
+			// reference http://stackoverflow.com/questions/7483421/how-to-get-source-file-name-line-number-from-a-java-lang-class-object
 			break;
 			
 		case CHGBTN:
-			grid.setValueAt(chgItemVal.getText(), Integer.valueOf(chgItemRow.getText()), Integer.valueOf(chgItemCol.getText()));
+			// Change button pressed
+			int value = Integer.valueOf(chgItemVal.getText());
+			int row = Integer.valueOf(chgItemRow.getText());
+			int col = Integer.valueOf(chgItemCol.getText());
+			// Get the new Rating item from user input and set the grid accordingly
+			Rating item = new Rating(Rating.TYPE_RATING, value);
+			grid.setValueAt(item, row, col);
+			// Data inputed by user is rating, hence populate the userData matrix with the 
+			// value and wipe the predictions matrix at the same location
+			userData.setElement(row - 1, col - 1, value);
+			predictions.setElement(row - 1, col - 1, 0);
 			break;
 			
-		default:
-			
-			for(i = 0; i < data.getNumOfRows(); i++)
+		case PREDBTN:
+			// Predictions button pressed
+			// Scan the userData matrix and get predictions where 0 are found
+			for(int i = 0; i < userData.getNumOfRows(); i++)
 			{
-				for (int j = 0; j< data.getNumOfColumns(); j++)
+				for (int j = 0; j< userData.getNumOfColumns(); j++)
 				{
-					if (data.getElement(i,  j) == 0)
+					if (userData.getElement(i,  j) == 0)
 					{
-						pred.setElement(i, j, data.prediction(i,  j));
+						predictions.setElement(i, j, userData.predict(i, j));
 					}
 					else
 					{
-						pred.setElement(i, j, 0);	
+						// make sure that predictions is 0 where a valid recommendation is present
+						predictions.setElement(i, j, 0);	
 					}
 				}
 			}
-
+			drawGrid();
+			break;
 		}	
 	}
 
 	@Override
 	public void focusLost(FocusEvent arg0) 
 	{
-		// TODO Auto-generated method stub
+		// Get the name of the component for which focus has been lost
 		String compName = arg0.getComponent().getName();
-		System.out.println(compName + " lost foucs");
+		
+		// 3 cases:
+		//   a. user input is correct
+		//   b. user input is out of bounds
+		//   c. user input is not in right format (integer)
+		// we check the b. and we rely on the exception thrown by Integer.parseInt for c.
 		try
 		{
 			if (compName.compareTo("row") == 0)
 			{
-				int rows = Integer.parseInt(chgItemRow.getText()); 
-				if ((rows < 1) || (rows > numRows))
+				// Check user input and report error. In case of data non integer an exception is thrown
+				int rows = Integer.parseInt(chgItemRow.getText());
+				//handle case b.
+				if ((rows < 1) || (rows > userData.getNumOfRows()))
 				{
-					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + numRows);
+					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + userData.getNumOfRows());
+					// Wipe out the inputed value
 					wipeInputField("row", true);
 				}
 			}
 			else if (compName.compareTo("col") == 0)
 			{
 				int cols = Integer.parseInt(chgItemCol.getText()); 
-				if ((cols < 1) || (cols > numCols))
+				if ((cols < 1) || (cols > userData.getNumOfColumns()))
 				{
-					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + numCols);
+					JOptionPane.showMessageDialog(this, "Value must be between 1 and " + userData.getNumOfColumns());
 					wipeInputField("col", true);
 				}
 			}
 		}
 		catch(NumberFormatException e)
 		{
+			// handle case c.
 			if (compName.compareTo("row") == 0)
 			{
 				if (chgItemRow.getText().compareTo("") != 0)
@@ -232,17 +292,20 @@ public class UserInterface extends JFrame
 	@Override
 	public void keyTyped(KeyEvent arg0) 
 	{
-		System.out.println("Component '" + arg0.getComponent().getName() + "' char '" + arg0.getKeyChar() + "' code " + arg0.getKeyCode());
+		// Only digits, Delete and Backspace are allowed in TextFields
 		
 		if ((arg0.getKeyChar() != KeyEvent.VK_DELETE) &&
 			(arg0.getKeyChar() != KeyEvent.VK_BACK_SPACE))
 		{
 			if ((arg0.getKeyChar() < '0') || (arg0.getKeyChar() > '9'))
 			{
-			    tk.beep();
+				JOptionPane.showMessageDialog(this, "Only digits are allowed in this field");
 			    arg0.consume();
 				return;
 			}
+			
+			// if the field for which we received keyTyped is the Value one, we limit
+			// the input length to 1 character only and values from 0 to 5
 			if (arg0.getComponent().getName().compareTo("val") == 0) 
 			{
 				if (chgItemVal.getText().length() > 0)
@@ -257,14 +320,12 @@ public class UserInterface extends JFrame
 				}
 				return;
 			}
-			System.out.println("typed '" + arg0.getKeyChar() + "'");
 		}
 	}
 	
 	@Override
-	public void keyReleased(KeyEvent arg0) {
-		// TODO Auto-generated method stub
-		
+	public void keyReleased(KeyEvent arg0) 
+	{
 	}
 	
 	@Override
@@ -274,7 +335,6 @@ public class UserInterface extends JFrame
 
 	private void wipeInputField(String name, boolean requestFocus)
 	{
-		System.out.println("Wiping " + name);
 		JTextField tf = null;
 		if (name.compareTo("row") == 0)
 			tf = chgItemRow;
@@ -282,6 +342,8 @@ public class UserInterface extends JFrame
 			tf = chgItemCol;
 		else if (name.compareTo("val") == 0)
 			tf = chgItemVal;
+		
+		// effectively wipe the text and return the focus to the same component
 		tf.setText("");
 		if (requestFocus)
 			tf.requestFocus();
@@ -289,10 +351,16 @@ public class UserInterface extends JFrame
 	
 	private void drawGrid()
 	{
+		// this method is used both to re-draw after a save or to draw a new table
+		// after a load. Because the newly loaded matrix could be of different size
+		// compared to the previously loaded, if the application had already instantiated 
+		// a grid it has to be removed from the panel before we create the new one.
 		if (grid != null)
 			frameCont.remove(grid);
-		grid = new JTable(data.getNumOfRows() + 1, data.getNumOfColumns() + 1);
-		for(int j = 0; j < data.getNumOfColumns() + 1; j++)
+
+		// Create the new grid, set the renderer for cell coloring and add to the container
+		grid = new JTable(userData.getNumOfRows() + 1, userData.getNumOfColumns() + 1);
+		for(int j = 0; j < userData.getNumOfColumns() + 1; j++)
 		{
 			grid.getColumnModel().getColumn(j).setCellRenderer(new MyTableCellRenderer());
 		}
@@ -300,14 +368,18 @@ public class UserInterface extends JFrame
 		grid.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         frameCont.add(grid, BorderLayout.CENTER);
 
+        // Fill grid with items. Elements of the grid will be Ratings. This class has a type
+        // and a value. The coloring is decided based on the type
 		Rating item = null;
-		for(int i = 1; i < data.getNumOfRows()+ 1; i++)
+		
+		// Set rows and columns labels rendered in blue color
+		for(int i = 1; i < userData.getNumOfRows()+ 1; i++)
 		{
 			item = new Rating(Rating.TYPE_LABEL, i);
 			grid.setValueAt(item, i, 0);
 		}
 		TableColumnModel cModel = grid.getColumnModel();
-		for(int i = 0; i < data.getNumOfColumns() + 1; i++)
+		for(int i = 0; i < userData.getNumOfColumns() + 1; i++)
 		{
 			cModel.getColumn(i).setMinWidth(20);
 			cModel.getColumn(i).setMaxWidth(20);
@@ -318,20 +390,21 @@ public class UserInterface extends JFrame
 				grid.setValueAt(item, 0, i);
 			}
 		}
-		for(int i = 0; i < data.getNumOfRows(); i++)
+		
+		// Populate matrix with data. The Rating type is assigned to each item based
+		// on the value source
+		for(int i = 0; i < userData.getNumOfRows(); i++)
 		{
-			for (int j = 0; j< data.getNumOfColumns(); j++)
+			for (int j = 0; j< userData.getNumOfColumns(); j++)
 			{
-				if(data.getElement(i,j) != 0)
+				if(userData.getElement(i, j) != 0)
 				{
-					// grid.setValueAt(data.getElement(i, j), i, j);
-					item = new Rating(Rating.TYPE_RATING, data.getElement(i, j));
+					item = new Rating(Rating.TYPE_RATING, userData.getElement(i, j));
 					grid.setValueAt(item, i + 1, j + 1);
 				}
-				else if (pred.getElement(i, j) != 0)
+				else if (predictions.getElement(i, j) != 0)
 				{
-					// grid.setValueAt(pred.getElement(i, j), i, j);
-					item = new Rating(Rating.TYPE_PREDICTION, pred.getElement(i, j));					
+					item = new Rating(Rating.TYPE_PREDICTION, predictions.getElement(i, j));					
 					grid.setValueAt(item, i + 1, j + 1);
 				}
 			}
@@ -341,17 +414,12 @@ public class UserInterface extends JFrame
 	
 	public UserInterface()
 	{
+		setTitle("Recommender");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				
-		numCols = Matrix.MAX_COLUMNS;
-		numRows = Matrix.MAX_ROWS;
-	    chgItemRow = new JTextField("", (this.numRows < 10 ? 1 : 2));
-	    chgItemCol = new JTextField("", (this.numCols < 10 ? 1 : 2));
-
-        JMenuBar jmb = new JMenuBar();
+	    // Creating menu bar and related menu items and subitems.
         JMenu mFile = new JMenu("File");
         mFile.setMnemonic(KeyEvent.VK_F);
-        jmb.add(mFile);
         JMenuItem fileOpen = new JMenuItem("Open");
         fileOpen.setMnemonic(KeyEvent.VK_O);
         fileOpen.setName("open");
@@ -373,70 +441,75 @@ public class UserInterface extends JFrame
         mFile.add(fileSaveAs);
         mFile.add(fileExit);
         JMenu mAbout = new JMenu("About");
+        JMenuBar jmb = new JMenuBar();
+        jmb.add(mFile);
         jmb.add(mAbout);
         frameCont.add(jmb, BorderLayout.NORTH);
-       // JPanel chgPanel = new JPanel();//(new SpringLayout());
-       // chgPanel.add(chgItemRowLab);
-       // chgPanel.add(chgItemRow);
-       // chgPanel.add(chgItemColLab);
-       // chgPanel.add(chgItemCol);
-       // chgPanel.add(chgItemValLab);
-       // chgPanel.add(chgItemVal);
-        
-        
-        //SpringUtilities.makeCompactGrid(chgPanel, 3, 2, 5, 5, 5, 5);
  
-		chgItemRow.addKeyListener(this);
+        JPanel subPanel = new JPanel();
+        
+        frameCont.add(subPanel, BorderLayout.EAST);
+        subPanel.setLayout(new BoxLayout(subPanel, BoxLayout.Y_AXIS));
+        
+        // Adding buttons for user action. The current class implements actionListener
+        // an actionPerformed method is provided to handle the button pressed event
+        subPanel.add(predBtn);
+        subPanel.add(chgBtn);
+        
+        // Add text fields for user input
+        subPanel.add(chgItemRowLab);
+        subPanel.add(chgItemRow);
+        subPanel.add(chgItemColLab);
+        subPanel.add(chgItemCol);
+        subPanel.add(chgItemValLab);
+        subPanel.add(chgItemVal);
+
+        // Add text input a name to identify which control is sending the event in 
+        // the even listener above
+        chgItemRow.setName("row");
+        chgItemCol.setName("col");
+        chgItemVal.setName("val");
+
+        // Add key and focus listeners to input text fields to control user input 
+        chgItemRow.addKeyListener(this);
 		chgItemCol.addKeyListener(this);
 		chgItemVal.addKeyListener(this);
 
 		chgItemRow.addFocusListener(this);
 		chgItemCol.addFocusListener(this);
 		chgItemVal.addFocusListener(this);
-		
-        //frameCont.add(chgPanel);
-        
-        JPanel subPanel = new JPanel();
-        //frameCont.add(subPanel, BorderLayout.EAST);
-        
-        // cambiamenti fatti da noi
-        // vedi se va bene :D
-        
-        frameCont.add(subPanel, BorderLayout.EAST);
-        subPanel.setLayout(new BoxLayout(subPanel, BoxLayout.Y_AXIS));
-        JButton predBtn = new JButton("Predict");
-        predBtn.addActionListener(this);// qui manca l'inserimento della prediction, serve un modo
-        								// per trovare la posizione sulla matrice dove l'utente ha cliccato
-        								// e l'inserimento della prediction nella casella cliccata dall'utente
-        subPanel.add(predBtn);
-        JButton chgBtn = new JButton("Change");
+		       
+        predBtn.addActionListener(this);
 		chgBtn.addActionListener(this);
-        subPanel.add(chgBtn);
-        subPanel.add(chgBtn);
-        chgItemRow.setName("row");
-        subPanel.add(chgItemRowLab);
-        subPanel.add(chgItemRow);
-        subPanel.add(chgItemRow);
-        chgItemCol.setName("col");
-        subPanel.add(chgItemColLab);
-        subPanel.add(chgItemCol);
-        subPanel.add(chgItemCol);
-        chgItemVal.setName("val");
-        subPanel.add(chgItemValLab);
-        subPanel.add(chgItemVal);
-        subPanel.add(chgItemVal);
+
+		// disable action and input components by default.
+		// they will be enable once the first file is loaded
+        chgBtn.setEnabled(false);
+        predBtn.setEnabled(false);
+        chgItemCol.setEnabled(false);
+        chgItemRow.setEnabled(false);
+        chgItemVal.setEnabled(false);
         
-        
+        // All objects having actionPerformed event associated are listed in an 
+        // array in order to determine which is the source of the current handled action
+        // in the actionPerformed method above
         sourceObj[0] = fileOpen;
         sourceObj[1] = fileSave;
         sourceObj[2] = fileSaveAs;
         sourceObj[3] = fileExit;
         sourceObj[4] = mAbout;
         sourceObj[5] = chgBtn;
+        sourceObj[6] = predBtn;
 
-        setSize(20 * (this.numCols + 1) + 180, 20 * (this.numRows + 3));
+        setSize(20 * (Matrix.MAX_COLUMNS + 1) + 180, 20 * (Matrix.MAX_ROWS + 1));
         setMinimumSize(new Dimension(200,  135));
 		// grid.editCellAt(3, 5);
+	}
+	
+	public int numberOfLines()
+	{
+		Throwable t = new Throwable();
+		return t.getStackTrace()[0].getLineNumber();
 	}
 
 }
